@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Democracy Desk | Personal Election Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-blur"></div>
+    
+    <header>
+        <div class="logo">Democracy <span>Desk</span></div>
+        <div class="controls">
+            <select id="state-selector">
+                <option value="California">California</option>
+                <option value="Texas">Texas</option>
+                <option value="New York">New York</option>
+                <option value="Florida">Florida</option>
+                <option value="Georgia">Georgia</option>
+            </select>
+            <select id="mode-selector">
+                <option value="normal">Normal Mode</option>
+                <option value="ELI10">ELI10 (Simple)</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <section class="content-area">
+            <div class="hero">
+                <h1>Ready to Vote?</h1>
+                <p>Personalized election guidance for your region.</p>
+            </div>
+
+            <div id="today-action-slot"></div>
+
+            <div class="chat-container">
+                <div id="explanation-box" class="explanation-text">
+                    Select your state and ask a question to get started. 
+                </div>
+
+                <div id="timeline-stepper" class="timeline">
+                    <!-- Steps will be injected here -->
+                </div>
+
+                <form id="chat-form" class="input-area">
+                    <input type="text" id="user-input" placeholder="Ask about registration, deadlines, or locations..." required>
+                    <button type="submit" class="send-btn" id="send-btn">Get Plan</button>
+                </form>
+            </div>
+        </section>
+
+        <aside>
+            <div class="reasoning-panel">
+                <div class="panel-header">AI Thinking Process</div>
+                <div id="reasoning-slot">
+                    <p style="color: var(--text-muted); font-size: 0.8rem;">No active processing.</p>
+                </div>
+            </div>
+
+            <div id="intent-panel" class="reasoning-panel" style="display: none;">
+                <div class="panel-header">Detected Intent</div>
+                <div id="intent-slot"></div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
