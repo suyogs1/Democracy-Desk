@@ -1,25 +1,27 @@
 import pytest
 from unittest.mock import AsyncMock, patch
-from core.orchestrator import Orchestrator
-from core.models import ExplanationMode, UrgencyLevel, Step
+from src.core.orchestrator import Orchestrator
+from src.core.models import ExplanationMode, UrgencyLevel
 
 @pytest.fixture
-def mock_gemini():
-    with patch('services.gemini_service.gemini_service.get_structured_response', new_callable=AsyncMock) as m1, \
-         patch('services.gemini_service.gemini_service.get_response', new_callable=AsyncMock) as m2:
-        yield m1, m2
+def mock_cloud():
+    """Mocks the central Google Cloud Manager."""
+    with patch('src.services.google_cloud.google_cloud.get_gemini_response', new_callable=AsyncMock) as m:
+        yield m
 
 @pytest.mark.asyncio
-async def test_orchestrator_full_pipeline(mock_gemini):
-    m1, m2 = mock_gemini
+async def test_orchestrator_full_pipeline(mock_cloud):
+    """Validates the full multi-agent flow through the orchestrator."""
+    m = mock_cloud
+    import json
     
-    # Mock responses for 4 agents
-    m1.side_effect = [
-        {"intent": "register", "category": "registration", "confidence": 0.9}, # Intent
-        {"steps": [{"title": "Step 1", "description": "D1", "cta": "A1", "timeline_hint": "now"}]}, # Planner
-        {"action": "Do thing", "time_estimate": "5m", "urgency": "high"} # Today
+    # Sequence of returns for the agents (Intent, Planner, Today, Explainer)
+    m.side_effect = [
+        json.dumps({"intent": "register", "category": "registration", "confidence": 0.9}), # Intent
+        json.dumps({"steps": [{"title": "Verify ID", "description": "Check if your ID is valid.", "cta": "Check Now", "timeline_hint": "now"}]}), # Planner
+        json.dumps({"action": "Verify Voter ID", "time_estimate": "2 mins", "urgency": "medium"}), # Today
+        "This is a simplified explanation for registration." # Explainer
     ]
-    m2.return_value = "Simplified explanation" # Explainer
     
     orchestrator = Orchestrator()
     response = await orchestrator.handle_query(
@@ -30,15 +32,22 @@ async def test_orchestrator_full_pipeline(mock_gemini):
     
     assert response.state == "Texas"
     assert len(response.steps) == 1
-    assert response.today_action.urgency == UrgencyLevel.HIGH
+    assert response.today_action.urgency == UrgencyLevel.MEDIUM
     assert len(response.reasoning_log) == 4
+    assert "simplified" in response.final_explanation.lower()
 
 @pytest.mark.asyncio
-async def test_today_action_urgency_parsing(mock_gemini):
-    m1, _ = mock_gemini
-    m1.return_value = {"action": "Go", "time_estimate": "1min", "urgency": "medium"}
+async def test_orchestrator_caching(mock_cloud):
+    """Verifies that the Orchestrator LRU cache is working for efficiency."""
+    m = mock_cloud
+    import json
+    m.return_value = json.dumps({"intent": "test", "category": "test", "confidence": 1.0})
     
-    from agents.today_agent import TodayActionAgent
-    agent = TodayActionAgent()
-    res = await agent.process("test", context={"steps": []})
-    assert res.metadata["urgency"] == "medium"
+    orchestrator = Orchestrator()
+    # Call 1
+    await orchestrator.handle_query("Cache Me", state="California")
+    # Call 2 (Should not trigger another Gemini call)
+    await orchestrator.handle_query("Cache Me", state="California")
+    
+    # Should only have been called for Intent, Planner, Today, Explainer once (4 times total)
+    assert m.call_count == 4

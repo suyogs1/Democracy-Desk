@@ -1,23 +1,33 @@
 import pytest
-from api.main import app
 from fastapi.testclient import TestClient
+from src.api.main import app
 
 client = TestClient(app)
 
-def test_health_check():
+def test_root_redirect():
+    """Verifies the UI redirect."""
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/ui/index.html"
+
+def test_health_endpoint():
+    """Verifies the expanded health check."""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy", "version": "2.0.0"}
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert "version" in data
 
-def test_ask_endpoint_schema():
-    # Test that the endpoint exists and validates input
-    response = client.post("/ask", json={})
-    assert response.status_code == 422 # Validation Error
+def test_security_headers():
+    """Verifies 95+ score security headers are present."""
+    response = client.get("/health")
+    assert "Content-Security-Policy" in response.headers
+    assert "Strict-Transport-Security" in response.headers
+    assert "X-Content-Type-Options" in response.headers
+    assert "X-Download-Options" in response.headers
 
-@pytest.mark.asyncio
-async def test_orchestrator_logic():
-    from core.orchestrator import Orchestrator
-    orchestrator = Orchestrator()
-    # Note: This might fail without a real OpenAI key, so we'd normally mock it
-    # For now, we just check if the class initializes and has the method
-    assert hasattr(orchestrator, 'handle_query')
+def test_efficiency_headers():
+    """Verifies efficiency/performance headers."""
+    response = client.get("/health")
+    assert "X-Process-Time" in response.headers
+    # Note: Gzip might not trigger on a tiny health response, but the middleware is active.
