@@ -321,4 +321,19 @@ aside {
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
+.system-status { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.status-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+.dot.green { background: #10b981; box-shadow: 0 0 8px #10b981; }
+
 @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }

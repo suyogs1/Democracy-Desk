@@ -1,36 +1,28 @@
-# Use a slim Python image for efficiency
+# Distroless or multi-stage slim
 FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install requirements
+# Only copy requirements first for caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Final stage
+# Final production image
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
-
-# Copy application code
+# Copy from builder
+COPY --from=builder /root/.local /root/.local
 COPY . .
 
-# Set environment variables
+# Ensure scripts in .local/bin are in PATH
+ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="."
 
-# Expose port (Cloud Run uses 8080 by default)
 EXPOSE 8080
 
-# Command to run the API
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Use optimized gunicorn+uvicorn for efficiency
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--timeout-keep-alive", "0"]

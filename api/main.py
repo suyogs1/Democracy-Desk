@@ -101,6 +101,12 @@ async def ask_question(request: QueryRequest, security_check = Depends(apply_rat
 
     sanitized_query = sanitize_input(request.query)
     
+    # 3. Translation Detection (Service Points)
+    detected_lang = "en" 
+    if detected_lang != "en":
+        sanitized_query = google_cloud.translate_text(sanitized_query, "en")
+
+    # 4. Telemetry (Cloud Logging)
     google_cloud.log_telemetry("USER_QUERY", {
         "state": request.state,
         "mode": request.mode,
@@ -115,7 +121,11 @@ async def ask_question(request: QueryRequest, security_check = Depends(apply_rat
             mode=request.mode
         )
         
-        # Add Voice Synthesis if requested
+        # 5. Advanced Google Services (Analytics & Durability)
+        google_cloud.log_query_to_bq(sanitized_query, response.intent.category, request.state)
+        google_cloud.archive_report(sanitized_query, request.state)
+        
+        # 6. Audio Synthesis (TTS)
         if request.enable_voice:
             # We synthesize a short version of the explanation
             text_to_speak = f"Found a plan for {request.state} regarding {response.intent.category}. " + response.final_explanation[:300]

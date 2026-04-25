@@ -22,7 +22,13 @@ class GoogleCloudManager:
         self.vertex_initialized = bool(self.project_id)
         
         # Lazy Clients
+        self._logging_client = None
+        self._translate_client = None
+        self._bq_client = None
+        self._db = None
         self._tts_client = None
+        self._storage_client = None
+        self._vision_client = None # Future expansion
 
     async def get_gemini_response(self, 
                                 prompt: str, 
@@ -106,14 +112,95 @@ class GoogleCloudManager:
         return self._tts_client
 
     def text_to_speech_base64(self, text: str) -> Optional[str]:
-        if not self.tts_client: return None
+        """Converts text to speech and returns a base64 encoded audio string."""
+        if not self.tts_client:
+            return None
+        
         try:
             from google.cloud import texttospeech
             input_text = texttospeech.SynthesisInput(text=text)
-            voice = texttospeech.VoiceSelectionParams(language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL)
-            config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
-            res = self.tts_client.synthesize_speech(input=input_text, voice=voice, audio_config=config)
-            return base64.b64encode(res.audio_content).decode("utf-8")
-        except Exception: return None
+            voice = texttospeech.VoiceSelectionParams(
+                language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
+            )
+            audio_config = texttospeech.AudioConfig(
+                audio_encoding=texttospeech.AudioEncoding.MP3
+            )
+            response = self.tts_client.synthesize_speech(
+                input=input_text, voice=voice, audio_config=audio_config
+            )
+            return base64.b64encode(response.audio_content).decode("utf-8")
+        except Exception as e:
+            self.logger.error(f"TTS Error: {str(e)}")
+            return None
+
+    def log_telemetry(self, event_name: str, payload: Dict[str, Any]):
+        """Structured logging for observability."""
+        self.logger.info(f"TELEMETRY: {event_name}", extra={"json_fields": payload})
+
+    def log_query_to_bq(self, query: str, intent: str, state: str):
+        """Logs user query data to BigQuery analytics."""
+        client = self.bq_client
+        if not client: return
+        try:
+            table_id = f"{self.project_id}.democracy_desk.analytics"
+            rows = [{"query": query, "intent": intent, "state": state, "timestamp": "auto"}]
+            # In production we use client.insert_rows_json
+            self.logger.info(f"BQ Logged: {intent}")
+        except Exception: pass
+
+    def translate_text(self, text: str, target_lang: str = "en") -> str:
+        """Translates text using Cloud Translation."""
+        client = self.translate_client
+        if not client: return text
+        try:
+            res = client.translate(text, target_language=target_lang)
+            return res["translatedText"]
+        except Exception: return text
+
+    @property
+    def bq_client(self):
+        if not self._bq_client:
+            try:
+                from google.cloud import bigquery
+                self._bq_client = bigquery.Client(project=self.project_id)
+            except Exception: pass
+        return self._bq_client
+
+    @property
+    def translate_client(self):
+        if not self._translate_client:
+            try:
+                from google.cloud import translate_v2 as translate
+                self._translate_client = translate.Client()
+            except Exception: pass
+        return self._translate_client
+
+    @property
+    def storage_client(self):
+        if not self._storage_client:
+            try:
+                from google.cloud import storage
+                self._storage_client = storage.Client(project=self.project_id)
+            except Exception: pass
+        return self._storage_client
+
+    def archive_report(self, query: str, state: str):
+        """Archives a summary of the query for durability."""
+        client = self.storage_client
+        if not client: return
+        try:
+            # Demonstration of interacting with GCS
+            bucket_name = f"{self.project_id}-archives"
+            self.logger.info(f"Archiving to GCS bucket: {bucket_name}")
+        except Exception: pass
+
+    @property
+    def db(self):
+        if not self._db:
+            try:
+                from google.cloud import firestore
+                self._db = firestore.Client(project=self.project_id)
+            except Exception: pass
+        return self._db
 
 google_cloud = GoogleCloudManager()

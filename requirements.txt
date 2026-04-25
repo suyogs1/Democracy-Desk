@@ -5,6 +5,7 @@ google-cloud-recaptcha-enterprise
 google-cloud-bigquery
 google-cloud-firestore
 google-cloud-texttospeech
+google-cloud-storage
 python-dotenv
 httpx
 pytest
