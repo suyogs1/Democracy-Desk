@@ -8,61 +8,66 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Google reCAPTCHA Enterprise -->
+    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
 </head>
 <body>
-    <div class="background-blur"></div>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="background-blur" aria-hidden="true"></div>
     
-    <header>
+    <header role="banner">
         <div class="logo">Democracy <span>Desk</span></div>
-        <div class="controls">
-            <select id="state-selector">
+        <nav class="controls" aria-label="Region and Mode Settings">
+            <select id="state-selector" aria-label="Select your state for regional guidance">
                 <option value="California">California</option>
                 <option value="Texas">Texas</option>
                 <option value="New York">New York</option>
                 <option value="Florida">Florida</option>
                 <option value="Georgia">Georgia</option>
             </select>
-            <select id="mode-selector">
+            <select id="mode-selector" aria-label="Select explanation complexity">
                 <option value="normal">Normal Mode</option>
                 <option value="ELI10">ELI10 (Simple)</option>
             </select>
-        </div>
+        </nav>
     </header>
 
-    <main>
-        <section class="content-area">
+    <main id="main-content">
+        <section class="content-area" aria-labelledby="hero-title">
             <div class="hero">
-                <h1>Ready to Vote?</h1>
-                <p>Personalized election guidance for your region.</p>
+                <h1 id="hero-title">Ready to Vote?</h1>
+                <p>Personalized, jargon-free election guidance for your region.</p>
             </div>
 
-            <div id="today-action-slot"></div>
+            <div id="today-action-slot" aria-live="polite"></div>
 
             <div class="chat-container">
-                <div id="explanation-box" class="explanation-text">
+                <div id="explanation-box" class="explanation-text" aria-live="polite">
                     Select your state and ask a question to get started. 
                 </div>
 
-                <div id="timeline-stepper" class="timeline">
+                <div id="timeline-stepper" class="timeline" aria-label="Step-by-step election plan">
                     <!-- Steps will be injected here -->
                 </div>
 
-                <form id="chat-form" class="input-area">
-                    <input type="text" id="user-input" placeholder="Ask about registration, deadlines, or locations..." required>
-                    <button type="submit" class="send-btn" id="send-btn">Get Plan</button>
+                <form id="chat-form" class="input-area" aria-label="Election query form">
+                    <input type="text" id="user-input" placeholder="Ask about registration, deadlines, or locations..." required aria-required="true">
+                    <button type="submit" class="send-btn" id="send-btn" aria-label="Submit query">Get Plan</button>
+                    <!-- reCAPTCHA badge container -->
+                    <div id="recaptcha-badge"></div>
                 </form>
             </div>
         </section>
 
-        <aside>
+        <aside aria-label="Technical Reasoning and Metadata">
             <div class="reasoning-panel">
                 <div class="panel-header">AI Thinking Process</div>
-                <div id="reasoning-slot">
+                <div id="reasoning-slot" aria-live="log">
                     <p style="color: var(--text-muted); font-size: 0.8rem;">No active processing.</p>
                 </div>
             </div>
 
-            <div id="intent-panel" class="reasoning-panel" style="display: none;">
+            <div id="intent-panel" class="reasoning-panel" style="display: none;" aria-live="polite">
                 <div class="panel-header">Detected Intent</div>
                 <div id="intent-slot"></div>
             </div>

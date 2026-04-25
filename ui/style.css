@@ -26,6 +26,26 @@ body {
     min-height: 100vh;
 }
 
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 0;
+    background: var(--primary);
+    color: white;
+    padding: 1rem;
+    z-index: 1000;
+    transition: top 0.2s;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+}
+
 .background-blur {
     position: fixed;
     top: 0;
@@ -116,6 +136,10 @@ input {
     color: white;
     padding: 0.5rem;
     outline: none;
+}
+
+input::placeholder {
+    color: var(--text-muted);
 }
 
 button.send-btn {

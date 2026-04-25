@@ -1,7 +1,10 @@
 fastapi
 uvicorn
 pydantic
-google-generativeai
+google-cloud-aiplatform
+google-cloud-translate
+google-cloud-logging
+google-cloud-recaptcha-enterprise
 python-dotenv
 httpx
 pytest
