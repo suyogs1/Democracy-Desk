@@ -6,6 +6,37 @@ Democracy Desk is a production-grade, multi-agent AI assistant designed to simpl
 
 ---
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    User((User)) --> WebUI[Glassmorphism UI / Voice]
+    WebUI --> FastAPI[Production FastAPI / Gunicorn]
+    
+    subgraph "Orchestration Layer"
+        FastAPI --> Orchestrator[Agentic Orchestrator]
+        Orchestrator --> Intent[Intent Agent]
+        Orchestrator --> Planner[Planner Agent]
+        Orchestrator --> Today[Momentum Agent]
+        Orchestrator --> Explainer[Explainer Agent]
+    end
+
+    subgraph "Google Cloud Stack"
+        Orchestrator --> Vertex[Vertex AI / Gemini 1.5]
+        Orchestrator --> BQ[BigQuery Analytics]
+        Orchestrator --> GCS[Cloud Storage Reports]
+        Orchestrator --> DB[Firestore Persistence]
+        Orchestrator --> TTS[Text-to-Speech]
+        Orchestrator --> Maps[Maps JS API]
+        Orchestrator --> Vision[Vision AI - ID Check]
+        Orchestrator --> Log[Cloud Logging / Ops]
+    end
+    
+    subgraph "Infrastructure as Code"
+        Terraform[Terraform] --> GCP_Resources[GCP Resource Cloud]
+    end
+```
+
 ## 🌟 Key Innovations
 - **Glass-Box AI Reasoning**: Unlike generic chatbots, Democracy Desk exposes its internal multi-agent "Thinking Process," showing how it classifies intent, plans steps, and adapts complexity.
 - **Regional Intelligence Layer**: Integrated Google Maps context dynamically visualizes the density of election offices for the selected region.

@@ -1,9 +1,8 @@
-# Distroless or multi-stage slim
+# Distroless-inspired multi-stage build
 FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Only copy requirements first for caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
@@ -16,7 +15,7 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 COPY . .
 
-# Ensure scripts in .local/bin are in PATH
+# Environment setup
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -24,5 +23,6 @@ ENV PYTHONPATH="."
 
 EXPOSE 8080
 
-# Use optimized gunicorn+uvicorn for efficiency
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--timeout-keep-alive", "0"]
+# Use Gunicorn with Uvicorn workers for high-efficiency production serving
+# This ensures optimal CPU utilization and request handling
+CMD ["gunicorn", "api.main:app", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080", "--timeout", "0"]
