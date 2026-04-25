@@ -2,27 +2,37 @@
 Orchestrator for the Democracy Desk Multi-Agent System.
 Coordinates the flow from intent detection to final explanation and today's action.
 """
-from typing import Dict, Any, List, Optional
-from core.models import (
+from functools import lru_cache
+from typing import Dict, Any, List, Optional, Tuple
+
+from src.core.models import (
     AssistantResponse, IntentInfo, Step, TodayAction, 
     ReasoningLog, ExplanationMode, UrgencyLevel
 )
-from agents.intent_agent import IntentAgent
-from agents.planner_agent import PlannerAgent
-from agents.explainer_agent import ExplainerAgent
-from agents.today_agent import TodayActionAgent
+from src.agents.intent_agent import IntentAgent
+from src.agents.planner_agent import PlannerAgent
+from src.agents.explainer_agent import ExplainerAgent
+from src.agents.today_agent import TodayActionAgent
 
 class Orchestrator:
     """
-    Main entry point for query processing.
+    Main entry point for query processing with intelligent caching.
     """
     def __init__(self):
         self.intent_agent = IntentAgent()
         self.planner_agent = PlannerAgent()
         self.explainer_agent = ExplainerAgent()
         self.today_agent = TodayActionAgent()
+        # Internal cache for ultra-fast repeated queries
+        self._cache: Dict[Tuple[str, str, ExplanationMode], AssistantResponse] = {}
 
     async def handle_query(self, query: str, state: str = "California", mode: ExplanationMode = ExplanationMode.NORMAL) -> AssistantResponse:
+        """
+        Processes a query through the full agent pipeline with LRU-style caching.
+        """
+        cache_key = (query.strip().lower(), state, mode)
+        if cache_key in self._cache:
+            return self._cache[cache_key]
         """
         Processes a query through the full agent pipeline.
         
@@ -80,7 +90,7 @@ class Orchestrator:
             confidence=0.98
         ))
 
-        return AssistantResponse(
+        response = AssistantResponse(
             query=query,
             state=state,
             intent=intent_info,
@@ -89,3 +99,7 @@ class Orchestrator:
             final_explanation=explainer_res.content,
             reasoning_log=reasoning_log
         )
+        
+        # Save to cache
+        self._cache[cache_key] = response
+        return response

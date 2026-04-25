@@ -1,6 +1,6 @@
 import pytest
-from services.google_cloud import google_cloud
-from core.orchestrator import Orchestrator
+from src.services.google_cloud import google_cloud
+from src.core.orchestrator import Orchestrator
 
 @pytest.mark.asyncio
 async def test_waterfall_resilience():

@@ -5,11 +5,12 @@ from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from core.orchestrator import Orchestrator
-from core.models import AssistantResponse, ExplanationMode
-from core.security import sanitize_input, verify_recaptcha, apply_rate_limit
-from services.google_cloud import google_cloud
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from src.core.orchestrator import Orchestrator
+from src.core.models import AssistantResponse, ExplanationMode
+from src.core.security import sanitize_input, verify_recaptcha, apply_rate_limit
+from src.services.google_cloud import google_cloud
 
 # Initialize logging via the Google Cloud Manager
 logger = logging.getLogger("democracy_desk.api")
@@ -35,6 +36,9 @@ app = FastAPI(
     version="2.2.0",
     lifespan=lifespan
 )
+
+# High-efficiency compression
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Hardened CORS configuration
 app.add_middleware(

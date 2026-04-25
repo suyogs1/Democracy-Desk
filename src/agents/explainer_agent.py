@@ -3,9 +3,9 @@ Explainer Agent for translating technical steps into accessible language.
 Supports multiple explanation modes including 'ELI10' for high accessibility.
 """
 from typing import Dict, Any, List, Optional
-from core.agent import BaseAgent, AgentResponse
-from core.models import ExplanationMode
-from services.gemini_service import gemini_service
+from src.core.agent import BaseAgent, AgentResponse
+from src.core.models import ExplanationMode
+from src.services.google_cloud import google_cloud
 
 class ExplainerAgent(BaseAgent):
     """
@@ -40,6 +40,6 @@ class ExplainerAgent(BaseAgent):
             "Goal: Make it feel like a friendly guide. Avoid information overload."
         )
         
-        content = await gemini_service.get_response(prompt, use_pro=True)
+        content = await google_cloud.get_gemini_response(prompt, use_pro=True)
         
         return AgentResponse(agent_name=self.name, content=content)

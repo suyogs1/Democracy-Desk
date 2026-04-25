@@ -3,9 +3,9 @@ Today Action Engine for driving immediate user participation.
 Selected one high-impact action from the current context.
 """
 from typing import Dict, Any, Optional
-from core.agent import BaseAgent, AgentResponse
-from core.models import TodayAction, UrgencyLevel
-from services.gemini_service import gemini_service
+from src.core.agent import BaseAgent, AgentResponse
+from src.core.models import TodayAction, UrgencyLevel
+from src.services.google_cloud import google_cloud
 
 class TodayActionAgent(BaseAgent):
     """
@@ -35,7 +35,9 @@ class TodayActionAgent(BaseAgent):
             "{'action': string, 'time_estimate': string, 'urgency': 'low'|'medium'|'high'}"
         )
         
-        result = await gemini_service.get_structured_response(prompt, use_pro=False)
+        result_str = await google_cloud.get_gemini_response(prompt, json_mode=True)
+        import json
+        result = json.loads(result_str)
         action_data = TodayAction(**result)
         
         return AgentResponse(

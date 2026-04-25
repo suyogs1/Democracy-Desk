@@ -3,9 +3,9 @@ Planner Agent for generating election process timelines.
 Adapts steps based on user regional context and specific intent.
 """
 from typing import Dict, Any, List, Optional
-from core.agent import BaseAgent, AgentResponse
-from core.models import Step
-from services.gemini_service import gemini_service
+from src.core.agent import BaseAgent, AgentResponse
+from src.core.models import Step
+from src.services.google_cloud import google_cloud
 
 class PlannerAgent(BaseAgent):
     """
@@ -39,7 +39,9 @@ class PlannerAgent(BaseAgent):
             "3. Make descriptions detailed but actionable."
         )
         
-        result = await gemini_service.get_structured_response(prompt, use_pro=False)
+        result_str = await google_cloud.get_gemini_response(prompt, json_mode=True)
+        import json
+        result = json.loads(result_str)
         raw_steps = result.get("steps", [])
         
         # Hydrate Step models

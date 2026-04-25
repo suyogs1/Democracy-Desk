@@ -1,6 +1,6 @@
 import pytest
-from core.orchestrator import Orchestrator
-from core.models import ExplanationMode
+from src.core.orchestrator import Orchestrator
+from src.core.models import ExplanationMode
 
 @pytest.mark.asyncio
 async def test_explanation_mode_eli10():

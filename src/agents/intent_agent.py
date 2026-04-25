@@ -3,9 +3,9 @@ Intent Detection Agent for parsing user queries.
 Uses Gemini Flash to categorize and validate user requests.
 """
 from typing import Dict, Any, Optional
-from core.agent import BaseAgent, AgentResponse
-from core.models import IntentInfo
-from services.gemini_service import gemini_service
+from src.core.agent import BaseAgent, AgentResponse
+from src.core.models import IntentInfo
+from src.services.google_cloud import google_cloud
 
 class IntentAgent(BaseAgent):
     """
