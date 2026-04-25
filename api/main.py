@@ -4,6 +4,8 @@ import pytest
 import multiprocessing
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Response, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from core.orchestrator import Orchestrator
 from core.models import AssistantResponse, ExplanationMode
@@ -21,15 +23,12 @@ def run_startup_tests():
     exit_code = pytest.main(["-x", "tests/test_hardened.py"])
     if exit_code != 0:
         logger.error(f"❌ Startup tests failed with code {exit_code}")
-        # In a real production app, we might stop the startup here
     else:
         logger.info("✅ Startup tests passed successfully.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handles startup and shutdown logic."""
-    # Run tests in a separate process to avoid blocking the event loop
-    # or interfering with the main app instance
     test_proc = multiprocessing.Process(target=run_startup_tests)
     test_proc.start()
     yield
@@ -45,7 +44,7 @@ app = FastAPI(
 # Hardened CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict to specific domains
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
@@ -61,7 +60,7 @@ async def add_security_headers(request: Request, call_next):
     # Security Headers
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; "
+        "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://www.gstatic.com/charts/loader.js; "
         "frame-src https://www.google.com/recaptcha/; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com;"
@@ -76,6 +75,14 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     
     return response
+
+# Serve Frontend Static Files
+app.mount("/ui", StaticFiles(directory="ui"), name="ui")
+
+@app.get("/")
+async def root():
+    """Redirect root to the UI for better user experience."""
+    return RedirectResponse(url="/ui/index.html")
 
 orchestrator = Orchestrator()
 
@@ -94,7 +101,6 @@ async def ask_question(request: QueryRequest, security_check = Depends(apply_rat
     """
     # 1. Security Verification
     if not await verify_recaptcha(request.recaptcha_token):
-        # We log and proceed for demo purposes if token is missing but warn
         logger.warning("Request processed without valid reCAPTCHA token.")
 
     # 2. Input Sanitization
