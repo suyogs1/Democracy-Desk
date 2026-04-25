@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Democracy Desk | Personal Election Assistant</title>
+    <title>Democracy Desk | Personal Election Intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- Google reCAPTCHA Enterprise -->
     <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
+    <!-- Google Maps API (Replace KEY with actual or placeholder) -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA8_D-M-XXXX-DEMO&callback=initMap" async defer></script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -24,6 +26,7 @@
                 <option value="New York">New York</option>
                 <option value="Florida">Florida</option>
                 <option value="Georgia">Georgia</option>
+                <option value="Pennsylvania">Pennsylvania</option>
             </select>
             <select id="mode-selector" aria-label="Select explanation complexity">
                 <option value="normal">Normal Mode</option>
@@ -33,53 +36,57 @@
     </header>
 
     <main id="main-content">
-        <section class="content-area" aria-labelledby="hero-title">
+        <section class="primary-view">
             <div class="hero">
-                <h1 id="hero-title">Ready to Vote?</h1>
-                <p>Personalized, jargon-free election guidance for your region.</p>
+                <h1>Voter Readiness <span>Engine</span></h1>
+                <p>AI-driven election process education and accessibility.</p>
             </div>
 
             <div id="today-action-slot" aria-live="polite"></div>
 
-            <div class="chat-container">
+            <div class="chat-container glass-panel">
                 <div id="explanation-box" class="explanation-text" aria-live="polite">
-                    Select your state and ask a question to get started. 
+                    Select your state and ask about registration, deadlines, or polling locations.
                 </div>
 
-                <div id="timeline-stepper" class="timeline" aria-label="Step-by-step election plan">
-                    <!-- Steps will be injected here -->
-                </div>
+                <div id="timeline-stepper" class="timeline" aria-label="Step-by-step election plan"></div>
 
                 <form id="chat-form" class="input-area" aria-label="Election query form">
                     <button type="button" id="voice-btn" class="voice-btn" aria-label="Start voice input">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                     </button>
-                    <input type="text" id="user-input" placeholder="Ask about registration or deadlines..." required aria-required="true">
-                    <button type="submit" class="send-btn" id="send-btn" aria-label="Submit query">Get Plan</button>
-                    <!-- reCAPTCHA badge container -->
+                    <input type="text" id="user-input" placeholder="What happens on election day in Texas?" required aria-required="true">
+                    <button type="submit" class="send-btn" id="send-btn">Process Request</button>
                     <div id="recaptcha-badge"></div>
                 </form>
                 <audio id="ai-audio" hidden></audio>
-
-                <div class="system-status" aria-label="System components status">
-                    <span class="status-pill"><span class="dot green"></span> Gemini AI</span>
-                    <span class="status-pill"><span class="dot green"></span> BigQuery Analytics</span>
-                    <span class="status-pill"><span class="dot green"></span> Cloud Storage</span>
-                    <span class="status-pill"><span class="dot green"></span> Firestore DB</span>
-                </div>
+            </div>
+            
+            <div class="system-status">
+                <span class="status-pill"><span class="dot active"></span> Vertex AI Gemini 1.5</span>
+                <span class="status-pill"><span class="dot active"></span> Cloud TTS</span>
+                <span class="status-pill"><span class="dot active"></span> BigQuery Analytics</span>
+                <span class="status-pill"><span class="dot active"></span> GCS Archive</span>
+                <span class="status-pill"><span class="dot active"></span> Firebase Sync</span>
             </div>
         </section>
 
-        <aside aria-label="Technical Reasoning and Metadata">
-            <div class="reasoning-panel">
-                <div class="panel-header">AI Thinking Process</div>
+        <aside aria-label="Context Intelligence">
+            <div class="reasoning-panel glass-panel">
+                <div class="panel-header">Regional Context Map</div>
+                <div id="map"></div>
+                <p style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Heatmap: Density of local election offices in <span id="state-name-display">California</span></p>
+            </div>
+
+            <div class="reasoning-panel glass-panel">
+                <div class="panel-header">Agent Reasoning Log</div>
                 <div id="reasoning-slot" aria-live="log">
-                    <p style="color: var(--text-muted); font-size: 0.8rem;">No active processing.</p>
+                    <p style="color: var(--text-dim); font-size: 0.8rem;">Idle. Use the prompt to trigger agents.</p>
                 </div>
             </div>
 
-            <div id="intent-panel" class="reasoning-panel" style="display: none;" aria-live="polite">
-                <div class="panel-header">Detected Intent</div>
+            <div id="intent-panel" class="reasoning-panel glass-panel" style="display: none;">
+                <div class="panel-header">Intent Classification</div>
                 <div id="intent-slot"></div>
             </div>
         </aside>

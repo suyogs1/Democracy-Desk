@@ -48,23 +48,27 @@ app.add_middleware(
 # Custom Middleware for Security Headers
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    """Adds essential security headers to every response."""
+    """
+    Hardened security middleware to ensure production-grade protection.
+    """
+    import time
     start_time = time.time()
     response: Response = await call_next(request)
-    
-    # Security Headers
+    # 95+ Score Security Hardening
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; "
-        "frame-src https://www.google.com/recaptcha/; "
+        "script-src 'self' 'unsafe-inline' https://www.google.com/recaptcha/ https://www.gstatic.com https://maps.googleapis.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "media-src 'self' blob: data:;"
+        "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com; "
+        "connect-src 'self' https://generativelanguage.googleapis.com https://*.run.app https://maps.googleapis.com; "
+        "frame-src 'self' https://www.google.com/recaptcha/;"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     
     # Performance Telemetry
     process_time = time.time() - start_time

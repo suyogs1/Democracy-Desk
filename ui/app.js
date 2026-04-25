@@ -1,179 +1,150 @@
-const form = document.getElementById('chat-form');
-const input = document.getElementById('user-input');
-const stateSelector = document.getElementById('state-selector');
-const modeSelector = document.getElementById('mode-selector');
-const explanationBox = document.getElementById('explanation-box');
-const timelineStepper = document.getElementById('timeline-stepper');
-const todayActionSlot = document.getElementById('today-action-slot');
-const reasoningSlot = document.getElementById('reasoning-slot');
-const sendBtn = document.getElementById('send-btn');
-const voiceBtn = document.getElementById('voice-btn');
-const aiAudio = document.getElementById('ai-audio');
+/**
+ * Democracy Desk - Frontend Intelligence
+ * Coordinates Voice, Maps, and AI Agents.
+ */
 
-let isVoiceActive = false;
-let recognition;
+let map;
+const STATE_COORDS = {
+    "California": { lat: 36.7783, lng: -119.4179, offices: 58 },
+    "Texas": { lat: 31.9686, lng: -99.9018, offices: 254 },
+    "New York": { lat: 40.7128, lng: -74.0060, offices: 62 },
+    "Florida": { lat: 27.6648, lng: -81.5158, offices: 67 },
+    "Georgia": { lat: 32.1656, lng: -82.9001, offices: 159 },
+    "Pennsylvania": { lat: 41.2033, lng: -77.1945, offices: 67 }
+};
 
-if ('webkitSpeechRecognition' in window) {
-    recognition = new webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-        isVoiceActive = true;
-        voiceBtn.classList.add('active');
-        input.placeholder = "Listening...";
-    };
-
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        input.value = transcript;
-        form.dispatchEvent(new Event('submit'));
-    };
-
-    recognition.onend = () => {
-        isVoiceActive = false;
-        voiceBtn.classList.remove('active');
-        input.placeholder = "Ask about registration or deadlines...";
-    };
+async function initMap() {
+    const defaultState = document.getElementById('state-selector').value;
+    const coords = STATE_COORDS[defaultState];
+    
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: coords.lat, lng: coords.lng },
+        zoom: 5,
+        styles: DARK_MAP_STYLE,
+        disableDefaultUI: true
+    });
 }
 
-voiceBtn.addEventListener('click', () => {
-    if (isVoiceActive) {
-        recognition.stop();
-    } else {
-        recognition.start();
+document.getElementById('state-selector').addEventListener('change', (e) => {
+    const state = e.target.value;
+    const coords = STATE_COORDS[state];
+    document.getElementById('state-name-display').innerText = state;
+    if (map && coords) {
+        map.setCenter({ lat: coords.lat, lng: coords.lng });
+        map.setZoom(5);
     }
 });
 
-form.addEventListener('submit', async (e) => {
+// App Logic
+document.getElementById('chat-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const query = input.value.trim();
-    if (!query) return;
-
-    // UI Reset & Accessibility
-    sendBtn.disabled = true;
-    form.setAttribute('aria-busy', 'true');
-    const originalBtnText = sendBtn.textContent;
-    sendBtn.textContent = 'Analyzing...';
+    const input = document.getElementById('user-input');
+    const state = document.getElementById('state-selector').value;
+    const mode = document.getElementById('mode-selector').value;
+    const btn = document.getElementById('send-btn');
     
-    explanationBox.innerHTML = '<div class="loading-state" aria-live="polite">Processing request...</div>';
-    timelineStepper.innerHTML = '';
-    todayActionSlot.innerHTML = '';
+    if (!input.value.trim()) return;
+
+    btn.disabled = true;
+    btn.innerText = "Analyzing...";
+    
+    // Clear previous
+    document.getElementById('reasoning-slot').innerHTML = '<div class="pulse-loader">Agentic Pipeline Active...</div>';
 
     try {
-        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:8000' 
-            : '';
-
-        const response = await fetch(`${API_BASE}/ask`, {
+        const response = await fetch('/ask', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                query, 
-                state: stateSelector.value,
-                mode: modeSelector.value,
-                enable_voice: true, // Always request voice for premium feel
-                recaptcha_token: "demo_token"
+            body: JSON.stringify({
+                query: input.value,
+                state: state,
+                mode: mode,
+                enable_voice: true
             })
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.detail || 'API Error');
-        }
-
         const data = await response.json();
         renderResponse(data);
-        
-        // Handle Audio Playback
-        if (data.audio_content) {
-            aiAudio.src = `data:audio/mp3;base64,${data.audio_content}`;
-            aiAudio.play().catch(e => console.log("Audio playback blocked by browser. Click to play."));
-        }
-        
-        explanationBox.setAttribute('tabindex', '-1');
-        explanationBox.focus();
-        
-    } catch (error) {
-        explanationBox.innerHTML = `<div class="error-msg" role="alert" style="color: var(--danger)">
-            <strong>Error:</strong> ${error.message}
-        </div>`;
+    } catch (err) {
+        console.error(err);
+        document.getElementById('explanation-box').innerText = "An error occurred. Please try again.";
     } finally {
-        sendBtn.disabled = false;
-        sendBtn.textContent = originalBtnText;
-        form.setAttribute('aria-busy', 'false');
-        input.value = '';
+        btn.disabled = false;
+        btn.innerText = "Process Request";
+        input.value = "";
     }
 });
 
 function renderResponse(data) {
-    // 1. Final Explanation
-    explanationBox.innerHTML = `<h3>Your Guide</h3><p>${data.final_explanation}</p>`;
+    const explBox = document.getElementById('explanation-box');
+    const timeline = document.getElementById('timeline-stepper');
+    const reasoning = document.getElementById('reasoning-slot');
+    const intentBox = document.getElementById('intent-slot');
+    
+    // 1. Explanation
+    explBox.innerHTML = `<h3>Plan Summary</h3><p>${data.final_explanation}</p>`;
+    
+    // 2. Timeline
+    timeline.innerHTML = data.steps.map((step, i) => `
+        <div class="step-item">
+            <strong>Step ${i+1}: ${step.title}</strong>
+            <p>${step.description}</p>
+            ${step.cta ? `<button class="status-pill">${step.cta}</button>` : ''}
+        </div>
+    `).join('');
+    
+    // 3. Reasoning
+    reasoning.innerHTML = data.reasoning_log.map(log => `
+        <div style="margin-bottom: 8px;">
+            <span style="color: var(--primary); font-weight: 600;">[${log.agent_name}]</span> ${log.summary}
+        </div>
+    `).join('');
 
-    // 2. Today Action Widget
-    todayActionSlot.innerHTML = `
-        <div class="today-widget" role="complementary" aria-label="Immediate Action Recommendation">
-            <span class="urgency-badge urgency-${data.today_action.urgency}">${data.today_action.urgency} Urgency</span>
-            <div style="font-size: 0.9rem; color: var(--text-muted)">Recommended for Today:</div>
-            <div style="font-size: 1.1rem; font-weight: 600;">${data.today_action.action}</div>
-            <div style="font-size: 0.8rem; opacity: 0.7">⏱️ Time Estimate: ${data.today_action.time_estimate}</div>
+    // 4. Intent
+    document.getElementById('intent-panel').style.display = 'block';
+    intentBox.innerHTML = `
+        <div style="display: flex; justify-content: space-between;">
+            <span>Category: ${data.intent.category}</span>
+            <span>Confidence: ${Math.round(data.intent.confidence * 100)}%</span>
         </div>
     `;
 
-    // 3. Timeline Stepper
-    data.steps.forEach((step, index) => {
-        const item = document.createElement('div');
-        item.className = 'timeline-item';
-        item.setAttribute('role', 'button');
-        item.setAttribute('tabindex', '0');
-        item.setAttribute('aria-expanded', 'false');
-        item.setAttribute('aria-label', `Step ${index + 1}: ${step.title}. Click to expand details.`);
-        
-        item.innerHTML = `
-            <div class="timeline-marker"></div>
-            <div class="timeline-content">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight: 700;">${step.title}</div>
-                    <span style="font-size: 0.7rem; color: var(--accent)">${step.timeline_hint || ''}</span>
-                </div>
-                <div class="details">
-                    ${step.description}
-                    <a href="#" class="action-cta" onclick="event.stopPropagation()">View More Region Info</a>
-                </div>
-            </div>
-        `;
-
-        const toggleExpand = () => {
-            const isExpanded = item.classList.toggle('expanded');
-            item.setAttribute('aria-expanded', isExpanded);
-        };
-
-        item.addEventListener('click', toggleExpand);
-        item.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleExpand();
-            }
-        });
-        
-        timelineStepper.appendChild(item);
-    });
-
-    // 4. Reasoning Panel
-    reasoningSlot.innerHTML = '';
-    data.reasoning_log.forEach(log => {
-        const div = document.createElement('div');
-        div.className = 'reasoning-item';
-        div.innerHTML = `
-            <div style="font-weight: 600; font-size: 0.85rem;">${log.agent_name}</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;">${log.summary}</div>
-            <div class="reasoning-meta">
-                <span>Confidence: ${Math.round(log.confidence * 100)}%</span>
-            </div>
-            <div class="confidence-bar" role="progressbar" aria-valuenow="${Math.round(log.confidence * 100)}" aria-valuemin="0" aria-valuemax="100">
-                <div class="confidence-fill" style="width: ${log.confidence * 100}%"></div>
-            </div>
-        `;
-        reasoningSlot.appendChild(div);
-    });
+    // 5. Voice
+    if (data.audio_content) {
+        const audio = document.getElementById('ai-audio');
+        audio.src = `data:audio/mp3;base64,${data.audio_content}`;
+        audio.play().catch(e => console.warn("Autoplay blocked. User interaction required."));
+    }
 }
+
+// Voice Recognition
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    const voiceBtn = document.getElementById('voice-btn');
+
+    voiceBtn.onclick = () => {
+        recognition.start();
+        voiceBtn.classList.add('active');
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById('user-input').value = transcript;
+        voiceBtn.classList.add('pulse');
+    };
+
+    recognition.onend = () => {
+        voiceBtn.classList.remove('active');
+        voiceBtn.classList.remove('pulse');
+    };
+}
+
+const DARK_MAP_STYLE = [
+    { elementType: "geometry", stylers: [{ color: "#212121" }] },
+    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
+    { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#757575" }] },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] }
+];
