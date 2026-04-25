@@ -45,4 +45,5 @@ class AssistantResponse(BaseModel):
     steps: List[Step]
     today_action: TodayAction
     final_explanation: str
+    audio_content: Optional[str] = None
     reasoning_log: List[ReasoningLog]

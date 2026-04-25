@@ -1,7 +1,5 @@
 import time
 import logging
-import pytest
-import multiprocessing
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.staticfiles import StaticFiles
@@ -16,28 +14,25 @@ from fastapi.middleware.cors import CORSMiddleware
 # Initialize logging via the Google Cloud Manager
 logger = logging.getLogger("democracy_desk.api")
 
-def run_startup_tests():
-    """Runs a subset of critical tests to ensure environment integrity."""
-    logger.info("🚀 Running Startup Self-Tests...")
-    # Run pytest on the hardened test suite
-    exit_code = pytest.main(["-x", "tests/test_hardened.py"])
-    if exit_code != 0:
-        logger.error(f"❌ Startup tests failed with code {exit_code}")
-    else:
-        logger.info("✅ Startup tests passed successfully.")
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handles startup and shutdown logic."""
-    test_proc = multiprocessing.Process(target=run_startup_tests)
-    test_proc.start()
+    """
+    Handles startup and shutdown logic.
+    Lightweight health check instead of heavy multiprocessing pytest.
+    """
+    logger.info("🚀 Democracy Desk starting up...")
+    # Basic connectivity check
+    if google_cloud.vertex_initialized:
+        logger.info("✅ Vertex AI initialized.")
+    else:
+        logger.warning("⚠️ Vertex AI initialization pending or failed.")
     yield
-    test_proc.join()
+    logger.info("🛑 Democracy Desk shutting down...")
 
 app = FastAPI(
     title="Democracy Desk AI",
     description="Secure, production-grade election education assistant.",
-    version="2.1.0",
+    version="2.2.0",
     lifespan=lifespan
 )
 
@@ -60,10 +55,11 @@ async def add_security_headers(request: Request, call_next):
     # Security Headers
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://www.gstatic.com/charts/loader.js; "
+        "script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; "
         "frame-src https://www.google.com/recaptcha/; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com;"
+        "font-src 'self' https://fonts.gstatic.com; "
+        "media-src 'self' blob: data:;"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -92,25 +88,24 @@ class QueryRequest(BaseModel):
     state: str = "California"
     mode: ExplanationMode = ExplanationMode.NORMAL
     recaptcha_token: str = ""
+    enable_voice: bool = False
 
 @app.post("/ask", response_model=AssistantResponse)
 async def ask_question(request: QueryRequest, security_check = Depends(apply_rate_limit)) -> AssistantResponse:
     """
     Submit an election-related query and get structured assistance.
-    Includes sanitization and security verification.
+    Includes sanitization and optional Text-to-Speech.
     """
-    # 1. Security Verification
     if not await verify_recaptcha(request.recaptcha_token):
         logger.warning("Request processed without valid reCAPTCHA token.")
 
-    # 2. Input Sanitization
     sanitized_query = sanitize_input(request.query)
     
-    # 3. Telemetry
     google_cloud.log_telemetry("USER_QUERY", {
         "state": request.state,
         "mode": request.mode,
-        "query_length": len(sanitized_query)
+        "query_length": len(sanitized_query),
+        "voice_enabled": request.enable_voice
     })
 
     try:
@@ -119,6 +114,13 @@ async def ask_question(request: QueryRequest, security_check = Depends(apply_rat
             state=request.state, 
             mode=request.mode
         )
+        
+        # Add Voice Synthesis if requested
+        if request.enable_voice:
+            # We synthesize a short version of the explanation
+            text_to_speak = f"Found a plan for {request.state} regarding {response.intent.category}. " + response.final_explanation[:300]
+            response.audio_content = google_cloud.text_to_speech_base64(text_to_speak)
+            
         return response
     except Exception as e:
         logger.error(f"Error handling query: {str(e)}")
@@ -129,6 +131,6 @@ def health_check() -> dict:
     """Check API status and version."""
     return {
         "status": "healthy", 
-        "version": "2.1.0",
+        "version": "2.2.0",
         "google_cloud_services": "active"
     }

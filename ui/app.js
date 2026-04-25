@@ -7,6 +7,43 @@ const timelineStepper = document.getElementById('timeline-stepper');
 const todayActionSlot = document.getElementById('today-action-slot');
 const reasoningSlot = document.getElementById('reasoning-slot');
 const sendBtn = document.getElementById('send-btn');
+const voiceBtn = document.getElementById('voice-btn');
+const aiAudio = document.getElementById('ai-audio');
+
+let isVoiceActive = false;
+let recognition;
+
+if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        isVoiceActive = true;
+        voiceBtn.classList.add('active');
+        input.placeholder = "Listening...";
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        input.value = transcript;
+        form.dispatchEvent(new Event('submit'));
+    };
+
+    recognition.onend = () => {
+        isVoiceActive = false;
+        voiceBtn.classList.remove('active');
+        input.placeholder = "Ask about registration or deadlines...";
+    };
+}
+
+voiceBtn.addEventListener('click', () => {
+    if (isVoiceActive) {
+        recognition.stop();
+    } else {
+        recognition.start();
+    }
+});
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -19,15 +56,14 @@ form.addEventListener('submit', async (e) => {
     const originalBtnText = sendBtn.textContent;
     sendBtn.textContent = 'Analyzing...';
     
-    explanationBox.innerHTML = '<div class="loading-state" aria-live="polite">Processing your request with multi-agent intelligence...</div>';
+    explanationBox.innerHTML = '<div class="loading-state" aria-live="polite">Processing request...</div>';
     timelineStepper.innerHTML = '';
     todayActionSlot.innerHTML = '';
 
     try {
-        // Detect environment and set base URL
         const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:8000' 
-            : ''; // Cloud Run uses same origin or relative or configured URL
+            : '';
 
         const response = await fetch(`${API_BASE}/ask`, {
             method: 'POST',
@@ -36,7 +72,8 @@ form.addEventListener('submit', async (e) => {
                 query, 
                 state: stateSelector.value,
                 mode: modeSelector.value,
-                recaptcha_token: "demo_token" // Placeholder for reCAPTCHA integration
+                enable_voice: true, // Always request voice for premium feel
+                recaptcha_token: "demo_token"
             })
         });
 
@@ -48,18 +85,24 @@ form.addEventListener('submit', async (e) => {
         const data = await response.json();
         renderResponse(data);
         
-        // Accessibility: Move focus to the explanation for screen readers
+        // Handle Audio Playback
+        if (data.audio_content) {
+            aiAudio.src = `data:audio/mp3;base64,${data.audio_content}`;
+            aiAudio.play().catch(e => console.log("Audio playback blocked by browser. Click to play."));
+        }
+        
         explanationBox.setAttribute('tabindex', '-1');
         explanationBox.focus();
         
     } catch (error) {
         explanationBox.innerHTML = `<div class="error-msg" role="alert" style="color: var(--danger)">
-            <strong>Error:</strong> ${error.message}. Please try again later.
+            <strong>Error:</strong> ${error.message}
         </div>`;
     } finally {
         sendBtn.disabled = false;
         sendBtn.textContent = originalBtnText;
         form.setAttribute('aria-busy', 'false');
+        input.value = '';
     }
 });
 

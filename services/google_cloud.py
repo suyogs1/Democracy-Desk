@@ -1,17 +1,18 @@
 """
 Unified Google Cloud Services Manager.
-Provides Vertex AI, Cloud Translation, Cloud Logging, BigQuery, and Firestore integrations.
+Provides Vertex AI, Translation, Logging, BigQuery, Firestore, and Text-to-Speech integrations.
 """
 import os
 import json
+import base64
 import logging
 from typing import Any, Dict, List, Optional
 
 import google.cloud.logging
 from google.cloud import translate_v2 as translate
-from google.cloud import aiplatform, bigquery, firestore
+from google.cloud import aiplatform, bigquery, firestore, texttospeech
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part, FinishReason
+from vertexai.generative_models import GenerativeModel
 
 from dotenv import load_dotenv
 
@@ -19,48 +20,45 @@ load_dotenv()
 
 class GoogleCloudManager:
     """
-    Manager class for all Google Cloud integrations to ensure consistent service usage.
+    Manager class for all Google Cloud integrations.
     """
     def __init__(self):
         self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "promptwar-493105")
         self.location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        self.api_key = os.getenv("VERTEX_AI_API_KEY")
         
         # Initialize Vertex AI
         if self.project_id:
-            vertexai.init(project=self.project_id, location=self.location)
-            self.vertex_initialized = True
+            try:
+                vertexai.init(project=self.project_id, location=self.location)
+                self.vertex_initialized = True
+            except Exception:
+                self.vertex_initialized = False
         else:
             self.vertex_initialized = False
 
-        # Initialize Cloud Logging
-        try:
-            self.logging_client = google.cloud.logging.Client(project=self.project_id)
-            self.logging_client.setup_logging()
-            self.logger = logging.getLogger("democracy_desk")
-        except Exception:
-            self.logger = logging.getLogger(__name__)
-
-        # Initialize Translation
-        try:
-            self.translate_client = translate.Client()
-        except Exception:
-            self.translate_client = None
-
-        # Initialize BigQuery (Analytics)
-        try:
-            self.bq_client = bigquery.Client(project=self.project_id)
-        except Exception:
-            self.bq_client = None
-
-        # Initialize Firestore (Persistence)
-        try:
-            self.db = firestore.Client(project=self.project_id)
-        except Exception:
-            self.db = None
-
+        # Initialize Services lazily to save memory
+        self._logging_client = None
+        self._translate_client = None
+        self._bq_client = None
+        self._db = None
+        self._tts_client = None
+        
         # Models
         self.flash_model = GenerativeModel("gemini-1.5-flash")
         self.pro_model = GenerativeModel("gemini-1.5-pro")
+
+        # Fallback Logger
+        self.logger = logging.getLogger("democracy_desk")
+
+    @property
+    def tts_client(self):
+        if not self._tts_client:
+            try:
+                self._tts_client = texttospeech.TextToSpeechClient()
+            except Exception:
+                self._tts_client = None
+        return self._tts_client
 
     async def get_gemini_response(self, 
                                 prompt: str, 
@@ -81,39 +79,26 @@ class GoogleCloudManager:
             self.logger.error(f"Vertex AI Error: {str(e)}")
             return json.dumps({"error": str(e)}) if json_mode else f"Error: {str(e)}"
 
-    def log_query_to_bq(self, query: str, intent: str, state: str):
-        """Logs user query data to BigQuery for analytics."""
-        if not self.bq_client:
-            return
+    def text_to_speech_base64(self, text: str) -> Optional[str]:
+        """Converts text to speech and returns a base64 encoded audio string."""
+        if not self.tts_client:
+            return None
         
-        table_id = f"{self.project_id}.analytics.user_queries"
-        rows_to_insert = [
-            {"query": query, "intent": intent, "state": state, "timestamp": "auto"}
-        ]
-        # In a real app, we'd ensure the dataset/table exists
-        self.logger.info(f"Logging to BigQuery: {intent} in {state}")
-
-    def save_bookmark(self, user_id: str, step_title: str):
-        """Saves a user bookmark to Firestore."""
-        if not self.db:
-            return
-        
-        doc_ref = self.db.collection("bookmarks").document(user_id)
-        doc_ref.set({
-            "last_bookmarked_step": step_title,
-            "updated_at": firestore.SERVER_TIMESTAMP
-        }, merge=True)
-
-    def translate_text(self, text: str, target_language: str = "es") -> str:
-        """Translates text using Cloud Translation API."""
-        if not self.translate_client:
-            return text
         try:
-            result = self.translate_client.translate(text, target_language=target_language)
-            return result["translatedText"]
+            input_text = texttospeech.SynthesisInput(text=text)
+            voice = texttospeech.VoiceSelectionParams(
+                language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
+            )
+            audio_config = texttospeech.AudioConfig(
+                audio_encoding=texttospeech.AudioEncoding.MP3
+            )
+            response = self.tts_client.synthesize_speech(
+                input=input_text, voice=voice, audio_config=audio_config
+            )
+            return base64.b64encode(response.audio_content).decode("utf-8")
         except Exception as e:
-            self.logger.error(f"Translation Error: {str(e)}")
-            return text
+            self.logger.error(f"TTS Error: {str(e)}")
+            return None
 
     def log_telemetry(self, event_name: str, payload: Dict[str, Any]):
         """Structured logging for telemetry."""

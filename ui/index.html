@@ -51,11 +51,15 @@
                 </div>
 
                 <form id="chat-form" class="input-area" aria-label="Election query form">
-                    <input type="text" id="user-input" placeholder="Ask about registration, deadlines, or locations..." required aria-required="true">
+                    <button type="button" id="voice-btn" class="voice-btn" aria-label="Start voice input">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    </button>
+                    <input type="text" id="user-input" placeholder="Ask about registration or deadlines..." required aria-required="true">
                     <button type="submit" class="send-btn" id="send-btn" aria-label="Submit query">Get Plan</button>
                     <!-- reCAPTCHA badge container -->
                     <div id="recaptcha-badge"></div>
                 </form>
+                <audio id="ai-audio" hidden></audio>
             </div>
         </section>
 
